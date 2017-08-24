@@ -1,6 +1,8 @@
-local FileCommands = Class(function(self, name)
+local InputDialogScreen = require "screens/inputdialog"
+
+local FileCommands = Class(function(self, name, filepath_config)
     self.name = name or ""
-    self.filepath = "C:\\temp\\cmd.txt"
+    self.filepath = (filepath_config == 1) and "C:\\temp\\cmd.txt" or ""
     self.enable_log = nil
     self.isActive = false
     self.inEvent = false
@@ -15,14 +17,63 @@ function FileCommands:SetButton(button)
     self.button = button
 end
 
+local function file_exists(name)
+   return pcall(function() io.lines(name) end)
+end
+
+function FileCommands:GetPath(startfn)
+  local report_dialog = InputDialogScreen("Enter path to the file with commands:", 
+    {
+      {
+        text = "OK", 
+        cb = function()
+            local fn = InputDialogScreen:GetText()
+            self:Log("Text entered (ok) "..fn)
+            if file_exists(fn) then
+              self:Log("File "..fn.." exists")
+              self.filepath = fn
+              startfn()
+            end
+            TheFrontEnd:PopScreen()
+        end
+      },
+      {
+        text = "Cancel", 
+        cb = function()
+            self:Log("Text cancelled")
+            TheFrontEnd:PopScreen()
+        end
+      },
+    },
+    true)
+    report_dialog.edit_text.OnTextEntered = function()
+        local fn = InputDialogScreen:GetText()
+        self:Log("Text entered "..fn)
+        if file_exists(fn) then
+          self:Log("File "..fn.." exists")
+          self.filepath = fn
+          startfn()
+        end
+        TheFrontEnd:PopScreen()
+    end
+    report_dialog:SetValidChars([[ abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:.\ ]]) --'
+    TheFrontEnd:PushScreen(report_dialog)  
+    report_dialog.edit_text:OnControl(CONTROL_ACCEPT, false)
+end
+
 --Start processing commands from file in game
 function FileCommands:Start()
+  if not self.filepath or self.filepath == "" then
+    self:GetPath(function() self:Start() end)
+  end
+  if self.filepath ~= "" then
     self:Log("Started")
     self.isActive = true
     if self.button then
         self:RefreshButton(self.button)
     end
     self:Run(self,{time=0})
+  end
 end
 
 --Stop processing commands from file in game

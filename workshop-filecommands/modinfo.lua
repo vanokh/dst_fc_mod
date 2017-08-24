@@ -1,7 +1,7 @@
 name = "File commands"
 description = "Add interactions to your game - execute commands from file"
 author = "vanokh"
-version = "0.1.0"
+version = "0.1.1"
 
 forumthread = ""
 
@@ -24,8 +24,8 @@ configuration_options =
         label = "Path to command file",
         options =
         {            
-            {description = "Temp", data = "C:\\temp\\cmd.txt"},
-            {description = "Documents", data = 2}
+            {description = "Temp", data = 1},
+            {description = "Custom", data = 2}
         },
         default = 2
     }
