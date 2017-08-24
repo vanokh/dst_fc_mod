@@ -1,12 +1,20 @@
 name = "File commands"
-description = "Add interactions to your game - execute commands from file"
+
+version = "1.0.0"
+russian = name.utf8len and (russian or language == "ru")
+description = (
+	russian
+	
+	and "Мод добавляет огонька в игру - читает команды из файла.".."\nВерсия "..version
+	
+	or "Add interactions to your game - execute commands from file.".."\nVersion "..version
+	)
 author = "vanokh"
-version = "0.1.1"
 
 forumthread = ""
 
 api_version = 10
-priority = 9999
+priority = 0.4729487239
 
 all_clients_require_mod = true
 client_only_mod = false
@@ -24,9 +32,10 @@ configuration_options =
         label = "Path to command file",
         options =
         {            
-            {description = "Temp", data = 1},
-            {description = "Custom", data = 2}
+            {description = "Temp\\cmd.txt", data = 1},
+            {description = "DST\\cmd.txt", data = 2},
+            {description = "Custom", data = 0}
         },
-        default = 2
+        default = 0
     }
 }

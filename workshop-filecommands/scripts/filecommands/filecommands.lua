@@ -2,16 +2,22 @@ local InputDialogScreen = require "screens/inputdialog"
 
 local FileCommands = Class(function(self, name, filepath_config)
     self.name = name or ""
-    self.filepath = (filepath_config == 1) and "C:\\temp\\cmd.txt" or ""
+    self.filepath = (filepath_config == 1) and "C:\\temp\\cmd.txt" or 
+      (filepath_config == 2) and "..\\cmd.txt" or ""
     self.enable_log = nil
     self.isActive = false
     self.inEvent = false
+
+    self.commands = nil
 
     self:EnableLog(true)
 end)
 
 --------------------------------------------------------------------------
 --[[Public]]
+function FileCommands:SetCommands(commands)
+  self.commands = commands
+end
 
 function FileCommands:SetButton(button)
     self.button = button
@@ -72,6 +78,7 @@ function FileCommands:Start()
     if self.button then
         self:RefreshButton(self.button)
     end
+    self.commands:Init(self.filepath)
     self:Run(self,{time=0})
   end
 end
@@ -149,9 +156,9 @@ function FileCommands:Run(inst, data)
     self:Log("Stopped")
     return true
   end
-
+  self.commands:Process()
   TheWorld:DoTaskInTime(0.3, function() self:Run(inst,{time=data.time+0.001}) end)
-  self:Log("tick "..data.time)
+  --self:Log("tick "..data.time)
   return true
 end
 return FileCommands

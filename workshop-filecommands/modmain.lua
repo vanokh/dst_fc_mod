@@ -11,11 +11,13 @@ local require = GLOBAL.require
 local AddModRPCHandler = GLOBAL.AddModRPCHandler
 local FileCommandsButton = require("widgets/filecommandsbutton")
 local FileCommands = require("filecommands/filecommands")("FileCommands", GetModConfigData("file_path", true))
+local Commands = require("filecommands/commands")("Commands")
 GLOBAL.FileCommands = FileCommands
+FileCommands:SetCommands(Commands)
 
-AddModRPCHandler("filecommands", "RunCommand",
+AddModRPCHandler("filecommands", "DoSafe",
     function(player, cmdstr)
-        FileCommands:RunCommand(player, cmdstr)
+        Commands:DoSafe(cmdstr)
     end)
 
 AddClassPostConstruct("widgets/controls", function(self)
