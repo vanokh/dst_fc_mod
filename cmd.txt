@@ -50,3 +50,5 @@ readBook brimstone
 spawnNearPlayer randomBossLight
 spawnNearPlayer randomBossHard
 spawnNearPlayer randomBossHard
+spawnNearPlayer randomTier1
+spawnNearPlayer randomTier2

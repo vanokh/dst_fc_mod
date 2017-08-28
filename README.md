@@ -34,3 +34,9 @@ v1.1.0:
 * путь D:\cmd.txt
 * таймеры на команды (speed, damage, charge)
 * расстояние спауна
+v1.2.0 - настраиваемые комбинации фабов randomSpawn, по дефолту:
+* spawnNearPlayer randomBossLight
+* spawnNearPlayer randomBoss
+* spawnNearPlayer randomBossHard
+* spawnNearPlayer randomTier1
+* spawnNearPlayer randomTier2

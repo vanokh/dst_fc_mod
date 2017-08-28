@@ -1,3 +1,5 @@
+local randomSpawn = require("filecommands/randomSpawn")
+
 local Commands = Class(function(self, name)
     self.name = name or ""
     self.filepath = "C:\\temp\\cmd.txt"
@@ -226,8 +228,49 @@ local function spawnFabNearPosition(fab, ppos, dist, angle)
 	return sfab;
 end
 
+local function fillFabs(f)
+  local fabs = {}
+  if randomSpawn[f] and type(randomSpawn[f]) == "table" then
+    -- select random combination from tier
+    local comb = randomSpawn[f][math.random(#randomSpawn[f])]
+    if type(comb) == "table" then
+      for combi,combv in pairs(comb) do
+        if type(combv) == "table" then
+          for fi, fv in pairs(combv) do
+            if type(fv) == "number" then
+              for i = 1, fv do
+                table.insert(fabs, fi)
+              end
+            else
+              table.insert(fabs, fv)
+            end
+          end
+        else
+          -- only one fab in combination array, e.g. tier1
+          if type(combv) == "number" then
+            for i = 1, combv do
+              table.insert(fabs, combi)
+            end
+          else
+            table.insert(fabs, combv)
+          end
+        end
+      end
+    else
+      -- only one fab in combination, e.g. boss
+      table.insert(fabs, comb)
+    end
+  else
+    for i = 1, c do
+      table.insert(fabs, f)
+    end
+  end
+  return fabs;
+end
+
 function spawnNearPlayer(f, c)
   c = c or 1
+  local fabs = fillFabs(f)
   if f == "randomBossHard" then
     local loc = getrandomposition(AllPlayers[1])
     for _,v in pairs(AllPlayers) do
@@ -238,19 +281,19 @@ function spawnNearPlayer(f, c)
       v:DoTaskInTime(1, function() teleportPlayer(v, loc) end)
     end
     local counter = 0
-    for i = 1, c do
+    for _,fv in pairs(fabs) do
       AllPlayers[1]:DoTaskInTime(counter, function()
-          spawnFabNearPosition(f, loc, COMMAND_NEAR_DISTANCE, math.random()*2*PI)
+          spawnFabNearPosition(fv, loc, COMMAND_NEAR_DISTANCE, math.random()*2*PI)
         end)
       counter = counter + 0.25 + math.random()/4
     end
   else
-    for k,v in pairs(AllPlayers) do
+    for _,v in pairs(AllPlayers) do
       local counter = 0
-      for i = 1, c do
+      for _,fv in pairs(fabs) do
         if v and v:IsValid() then
           v:DoTaskInTime(counter, function()
-              spawnFabNearPosition(f, Vector3(v.Transform:GetWorldPosition()), COMMAND_NEAR_DISTANCE, math.random()*2*PI)
+              spawnFabNearPosition(fv, Vector3(v.Transform:GetWorldPosition()), COMMAND_NEAR_DISTANCE, math.random()*2*PI)
             end)
           counter = counter + 0.25 + math.random()/4
         end
