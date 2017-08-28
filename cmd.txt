@@ -1,0 +1,52 @@
+givePlayer fishsticks 5
+givePlayer flint 10
+givePlayer goldnugget 10
+givePlayer flint 20;givePlayer log 10
+
+playerEvent death
+playerEvent respawnfromghost
+playerEvent lightningstrike 5
+
+playerCommand speed 2
+playerCommand damage 2
+playerCommand freeze
+playerCommand charge
+playerCommand dropEverything
+playerCommand giveAllRecipes
+--old playerCommand components.inventory:DropEverything
+--old playerCommand components.builder:GiveAllRecipes
+
+spawnNearPlayer hound 25
+spawnNearPlayer spider 15
+spawnNearPlayer bearger
+spawnNearPlayer moose 5
+spawnNearPlayer beefalo 25
+spawnNearPlayer sanityrock 15
+
+spawnAtPlayer shadowmeteor 5
+
+worldEvent season winter
+worldEvent season summer
+worldEvent season autumn
+worldEvent rain
+worldEvent rain false
+worldEvent ms_nextphase
+worldEvent ms_nextcycle
+worldEvent longnight
+worldEvent sinkholespawner
+--old worldEvent ms_setseason winter
+--old worldEvent ms_setseason summer
+--old worldEvent ms_setseason autumn
+--old worldEvent ms_forceprecipitation
+--old worldEvent ms_forceprecipitation false
+
+teleportRandom
+
+readBook birds
+readBook tentacles
+readBook sleep
+readBook brimstone
+
+spawnNearPlayer randomBossLight
+spawnNearPlayer randomBossHard
+spawnNearPlayer randomBossHard

@@ -24,8 +24,8 @@ local function getrandomposition(caster)
     end
 end
 
-local function teleportPlayer(player)
-	local t_loc = getrandomposition(player)
+local function teleportPlayer(player, loc)
+	local t_loc = loc or getrandomposition(player)
   if player.Physics ~= nil then
       player.Physics:Teleport(t_loc.x, 0, t_loc.z)
   else
@@ -50,6 +50,17 @@ end
 
 function worldEvent(event, param)
   local alias = {season="ms_setseason", rain="ms_forceprecipitation"}
+  local seasons = {"spring","summer","autumn","winter"}
+  local newseasons = {}
+  for _,s in pairs(seasons) do
+    if s ~= TheWorld.state.season then
+      table.insert(newseasons, s)
+    end
+  end
+  if param == "random" and (event == "season" or event == alias["season"]) then
+    param = newseasons[math.random(#newseasons)] or param
+  end
+    
   if alias[event] then
     event = alias[event]
   end
@@ -98,8 +109,23 @@ function playerCommand(command, param)
   for i,v in ipairs(AllPlayers) do
     if command == "speed" then
       v.components.locomotor:SetExternalSpeedMultiplier(v, "c_speedmult", param or 1)
+      v:DoTaskInTime(COMMAND_SPEED_TIMER, 
+        function() v.components.locomotor:SetExternalSpeedMultiplier(v, "c_speedmult", 1) end)
+    
     elseif command == "damage" then
       v.components.combat.damagemultiplier = param or 1
+      v:DoTaskInTime(COMMAND_DAMAGE_TIMER, 
+        function() v.components.combat.damagemultiplier = 1 end)
+      
+    elseif command == "charge" then
+      v.Light:Enable(true)
+      v.Light:SetRadius(3)
+      v.Light:SetFalloff(0.75)
+      v.Light:SetIntensity(.75)
+      v.Light:SetColour(235 / 255, 121 / 255, 12 / 255)
+      v:DoTaskInTime(COMMAND_CHARGE_TIMER, 
+        function() v.Light:Enable(false) end)
+      
     elseif command == "freeze" then
       if v.components.freezable ~= nil then
           v.components.freezable:Freeze(5)
@@ -168,29 +194,66 @@ function readBook(bookName)
   end
 end
 
-local function spawnFabNearPlayer(fab, player, dist, angle)
-	local sfab = SpawnPrefab(fab)
-  local pos = Vector3(player.Transform:GetWorldPosition() )
-  if dist and dist ~= 0 and angle and angle ~= 0 then
-    --dist = dist/2 + math.random() * dist/2
-    pos.x = pos.x + dist*math.cos(angle)
-    pos.z = pos.z + dist*math.sin(angle)
+local function spawnFabNearPosition(fab, ppos, dist, angle)
+  if fab:match("randomBoss") then
+    local bosses = {}
+    if fab == "randomBossLight" then
+      bosses = {"spat","rook","warg","krampus","rocky"}
+    elseif fab == "randomBossHard" then
+      bosses = {"minotaur","dragonfly","klaus","beequeen"}
+    else
+      bosses = {"leif","bearger","moose","spiderqueen","deerclops"}
+    end
+    print("Choosing from "..table.concat(bosses,","))
+    
+    fab = bosses[math.random(#bosses)] or fab
   end
-	sfab.Transform:SetPosition(pos.x, pos.y, pos.z)
-	SpawnPrefab("spawn_fx_medium").Transform:SetPosition(pos.x, pos.y, pos.z)
+	local sfab = SpawnPrefab(fab)
+  if sfab then
+    local pos = ToVector3(ppos)
+    print("Spawn "..fab.." at "..pos.x..":"..pos.z)
+    if dist and dist ~= 0 and angle and angle ~= 0 then
+      --dist = dist/2 + math.random() * dist/2
+      pos.x = pos.x + dist*math.cos(angle)
+      pos.z = pos.z + dist*math.sin(angle)
+    end
+    sfab.Transform:SetPosition(pos.x, pos.y, pos.z)
+    if fab == "klaus" then
+      sfab:SpawnDeer()
+    end
+    SpawnPrefab("spawn_fx_medium").Transform:SetPosition(pos.x, pos.y, pos.z)
+  end
 	return sfab;
 end
 
 function spawnNearPlayer(f, c)
   c = c or 1
-  for k,v in pairs(AllPlayers) do
+  if f == "randomBossHard" then
+    local loc = getrandomposition(AllPlayers[1])
+    for _,v in pairs(AllPlayers) do
+      SpawnPrefab("spawn_fx_medium").Transform:SetPosition(v.Transform:GetWorldPosition())
+      v:ScreenFade(false, 2)
+      v:Hide()
+      loc.x = loc.x + 1
+      v:DoTaskInTime(1, function() teleportPlayer(v, loc) end)
+    end
     local counter = 0
     for i = 1, c do
-      if v and v:IsValid() then
-        v:DoTaskInTime(counter, function()
-            spawnFabNearPlayer(f, v, 6, math.random()*2*PI)
-          end)
-        counter = counter + 0.25 + math.random()/4
+      AllPlayers[1]:DoTaskInTime(counter, function()
+          spawnFabNearPosition(f, loc, COMMAND_NEAR_DISTANCE, math.random()*2*PI)
+        end)
+      counter = counter + 0.25 + math.random()/4
+    end
+  else
+    for k,v in pairs(AllPlayers) do
+      local counter = 0
+      for i = 1, c do
+        if v and v:IsValid() then
+          v:DoTaskInTime(counter, function()
+              spawnFabNearPosition(f, Vector3(v.Transform:GetWorldPosition()), COMMAND_NEAR_DISTANCE, math.random()*2*PI)
+            end)
+          counter = counter + 0.25 + math.random()/4
+        end
       end
     end
   end
@@ -202,7 +265,7 @@ function spawnAtPlayer(f, c)
     for i = 1, c or 1 do
       if v and v:IsValid() then
         v:DoTaskInTime(counter, function()
-            spawnFabNearPlayer(f, v)
+            spawnFabNearPosition(f, Vector3(vp.Transform:GetWorldPosition()))
           end)
         counter = counter + 0.1 + math.random()/4
       end
@@ -244,10 +307,29 @@ function Commands:Process()
       for m in string.gmatch(l, "[^;]+") do
         local t = {}
         local lc
+        if string.match(m, "random{.*}") then
+          self:Log("random found")
+        end
+        if string.match(m, "random{[^}]+}") then
+          local res
+          local rla = {}
+          local rl = string.match(m, "random{([^}]+)}")
+          for rli in string.gmatch(rl, "[^,]+") do
+            rla[#rla+1] = rli:gsub("^%s+", ""):gsub("%s+$", "")
+          end
+          res = rla[math.random(#rla)]
+          self:Log("Select random from "..#rla.." -> "..res)
+          if res and res ~= "" then
+            m = m:gsub("random{[^}]+}", res)
+          end
+        end
+                
         for k in string.gmatch(m, "%S+") do
           t[#t+1] = (#t == 0 or tonumber(k) or k == "true" or k == "false") and k or "\""..k.."\"" 
         end
-        if #t > 1 then
+        if t[1] == "c_announce" then
+          lc = t[1].."("..m:gsub("c_announce","")..")"
+        elseif #t > 1 then
           lc = t[1].."("..table.concat(t, ",", 2)..")"
         elseif not string.match(l, "%(%)$") and not string.match(l,"=%S+") then
           lc = t[1].."()"
