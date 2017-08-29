@@ -17,6 +17,7 @@ FileCommands:SetCommands(Commands)
 GLOBAL.COMMAND_SPEED_TIMER = GetModConfigData("speed_timer", true) or 60
 GLOBAL.COMMAND_DAMAGE_TIMER = GetModConfigData("damage_timer", true) or 60
 GLOBAL.COMMAND_CHARGE_TIMER = GetModConfigData("charge_timer", true) or 60
+GLOBAL.COMMAND_GIVEALL_TIMER = GetModConfigData("giveall_timer", true) or 7
 GLOBAL.COMMAND_NEAR_DISTANCE = GetModConfigData("near_distance", true) or 6
 
 AddModRPCHandler("filecommands", "DoSafe",

@@ -138,6 +138,9 @@ function playerCommand(command, param)
       local f = loadstring("AllPlayers["..i.."]."..command.."()")
       if f then
         f()
+        if command == alias.giveAllRecipes then
+          v:DoTaskInTime(COMMAND_GIVEALL_TIMER, f)
+        end
       end
     end
   end
@@ -228,7 +231,7 @@ local function spawnFabNearPosition(fab, ppos, dist, angle)
 	return sfab;
 end
 
-local function fillFabs(f)
+local function fillFabs(f, c)
   local fabs = {}
   if randomSpawn[f] and type(randomSpawn[f]) == "table" then
     -- select random combination from tier
@@ -261,7 +264,7 @@ local function fillFabs(f)
       table.insert(fabs, comb)
     end
   else
-    for i = 1, c do
+    for i = 1, c or 1 do
       table.insert(fabs, f)
     end
   end
@@ -270,7 +273,7 @@ end
 
 function spawnNearPlayer(f, c)
   c = c or 1
-  local fabs = fillFabs(f)
+  local fabs = fillFabs(f, c)
   if f == "randomBossHard" then
     local loc = getrandomposition(AllPlayers[1])
     for _,v in pairs(AllPlayers) do
@@ -289,6 +292,7 @@ function spawnNearPlayer(f, c)
     end
   else
     for _,v in pairs(AllPlayers) do
+      fabs = fillFabs(f, c)
       local counter = 0
       for _,fv in pairs(fabs) do
         if v and v:IsValid() then
@@ -308,7 +312,7 @@ function spawnAtPlayer(f, c)
     for i = 1, c or 1 do
       if v and v:IsValid() then
         v:DoTaskInTime(counter, function()
-            spawnFabNearPosition(f, Vector3(vp.Transform:GetWorldPosition()))
+            spawnFabNearPosition(f, Vector3(v.Transform:GetWorldPosition()))
           end)
         counter = counter + 0.1 + math.random()/4
       end

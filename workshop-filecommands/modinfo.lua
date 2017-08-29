@@ -88,6 +88,19 @@ configuration_options =
         default = 60
     },
     {
+        name = "giveall_timer",
+        label = "Give all recipes timer",
+        options =
+        {            
+            {description = "5s", data = 5},
+            {description = "7s", data = 7},
+            {description = "10s", data = 10},
+            {description = "15s", data = 15},
+            {description = "30s", data = 30},
+        },
+        default = 7
+    },
+    {
         name = "near_distance",
         label = "Spawn command distance",
         options =

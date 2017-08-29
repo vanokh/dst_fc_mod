@@ -40,3 +40,4 @@ v1.2.0 - настраиваемые комбинации фабов randomSpawn, по дефолту:
 * spawnNearPlayer randomBossHard
 * spawnNearPlayer randomTier1
 * spawnNearPlayer randomTier2
+v1.2.1 - фикс рандома в spawnNearPlayer и таймер на команду giveAllRecipes
