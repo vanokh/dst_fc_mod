@@ -18,6 +18,7 @@ return {
       {"smallbird"},
       {perd = 2},
       {"mandrake_active"},
+	  {mole = 3},
     },
     randomTier2 = {
       {worm = 2},
@@ -25,13 +26,14 @@ return {
       {spider_spitter=2, "spider_dropper", "spider_hider", "spider_warrior"},
       {killerbee=3, mosquito=3},
       {"walrus", icehound=2},
-      {knight=1,"bishop","rook"},
+      {knight=2,"bishop","rook"},
+	  {knight_nightmare=2,"bishop_nightmare","rook_nightmare"},
       {knight=4},
       {bishop=2},
       {merm=3},
       {slurtle = 2},
       {krampus = 2},
-      {"deciduoustree", birchnutdrake = 2},
+      {"pigguard"},
       {"tentacle_pillar"},
       {"koalefant_winter"},
       {"chessjunk1"},
@@ -45,7 +47,7 @@ return {
       "leif","bearger","moose","spiderqueen","deerclops"
     },
     randomBossHard = {
-      "minotaur","dragonfly","klaus","beequeen"
+      "minotaur","dragonfly","klaus","beequeen","toadstool"
     },
 randomBuilding = {
       {pighouse = 5},

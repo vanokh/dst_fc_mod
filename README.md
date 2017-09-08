@@ -41,3 +41,4 @@ v1.2.0 - настраиваемые комбинации фабов randomSpawn, по дефолту:
 * spawnNearPlayer randomTier1
 * spawnNearPlayer randomTier2
 v1.2.1 - фикс рандома в spawnNearPlayer и таймер на команду giveAllRecipes
+v1.2.2 - cчетчик смертей (только для текущего игрока) и startApo

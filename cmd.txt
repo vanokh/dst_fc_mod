@@ -52,3 +52,5 @@ spawnNearPlayer randomBossHard
 spawnNearPlayer randomBossHard
 spawnNearPlayer randomTier1
 spawnNearPlayer randomTier2
+
+startApo

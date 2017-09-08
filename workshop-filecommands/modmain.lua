@@ -20,10 +20,37 @@ GLOBAL.COMMAND_CHARGE_TIMER = GetModConfigData("charge_timer", true) or 60
 GLOBAL.COMMAND_GIVEALL_TIMER = GetModConfigData("giveall_timer", true) or 7
 GLOBAL.COMMAND_NEAR_DISTANCE = GetModConfigData("near_distance", true) or 6
 
+GLOBAL.FCAllDeaths = {}
+FCAllDeaths = GLOBAL.FCAllDeaths
+
 AddModRPCHandler("filecommands", "DoSafe",
     function(player, cmdstr)
         Commands:DoSafe(cmdstr)
     end)
+
+local function OnPlayerUpdate(player, death)
+  if death then print("Death of "..player.name) end
+  require("consolecommands")
+  if death then
+    FCAllDeaths[player.userid] = {name=player.name, count=FCAllDeaths[player.userid] and FCAllDeaths[player.userid].count+1 or 1}
+  end
+  local ds = ""
+  for _,v in pairs(AllPlayers or {player}) do
+    if FCAllDeaths[v.userid] then
+      ds = ds..(ds ~= "" and ", " or "")..v.name.." ("..FCAllDeaths[v.userid].count..")"
+    end
+  end
+  print("Deaths: "..ds)
+  GLOBAL.TheNet:Announce("Deaths: "..ds)
+end
+
+AddPrefabPostInit("world", function(inst)
+  inst:ListenForEvent("ms_playerjoined", function(src, player)
+    inst:ListenForEvent("death", function(inst, data) OnPlayerUpdate(inst, true) end, player)
+    OnPlayerUpdate(player) 
+  end , TheWorld)
+  inst:ListenForEvent("ms_playerleft", function(src, player) OnPlayerUpdate(player) end, TheWorld)
+end)                                             
 
 AddClassPostConstruct("widgets/controls", function(self)
     local Image = require("widgets/image")

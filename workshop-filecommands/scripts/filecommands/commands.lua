@@ -1,4 +1,5 @@
 local randomSpawn = require("filecommands/randomSpawn")
+local startApoEvents = require("filecommands/startApo")
 
 local Commands = Class(function(self, name)
     self.name = name or ""
@@ -320,6 +321,18 @@ function spawnAtPlayer(f, c)
   end
 end
 
+function startApo()
+  for _,e in pairs(startApoEvents) do
+    TheWorld:DoTaskInTime(e.delay or 0, function()
+      if e.cmd then
+        Commands:DoSafe(e.cmd)
+      elseif e.fn ~= nil then
+        e.fn(e.param)
+      end
+    end)
+  end
+end
+
 function Commands:DoSafe(cmdstr)
   local f = loadstring(cmdstr)
   if f and f ~= "" then
@@ -375,7 +388,7 @@ function Commands:Process()
           t[#t+1] = (#t == 0 or tonumber(k) or k == "true" or k == "false") and k or "\""..k.."\"" 
         end
         if t[1] == "c_announce" then
-          lc = t[1].."("..m:gsub("c_announce","")..")"
+          lc = t[1].."(\""..m:gsub("c_announce","").."\")"
         elseif #t > 1 then
           lc = t[1].."("..table.concat(t, ",", 2)..")"
         elseif not string.match(l, "%(%)$") and not string.match(l,"=%S+") then
