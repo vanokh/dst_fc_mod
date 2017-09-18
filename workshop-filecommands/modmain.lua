@@ -10,6 +10,7 @@ end
 local require = GLOBAL.require
 local AddModRPCHandler = GLOBAL.AddModRPCHandler
 local FileCommandsButton = require("widgets/filecommandsbutton")
+local ShowDeathsButton = require("widgets/showdeathsbutton")
 local FileCommands = require("filecommands/filecommands")("FileCommands", GetModConfigData("file_path", true))
 local Commands = require("filecommands/commands")("Commands")
 GLOBAL.FileCommands = FileCommands
@@ -28,20 +29,29 @@ AddModRPCHandler("filecommands", "DoSafe",
         Commands:DoSafe(cmdstr)
     end)
 
-local function OnPlayerUpdate(player, death)
-  if death then print("Death of "..player.name) end
-  require("consolecommands")
-  if death then
-    FCAllDeaths[player.userid] = {name=player.name, count=FCAllDeaths[player.userid] and FCAllDeaths[player.userid].count+1 or 1}
-  end
-  local ds = ""
-  for _,v in pairs(AllPlayers or {player}) do
-    if FCAllDeaths[v.userid] then
-      ds = ds..(ds ~= "" and ", " or "")..v.name.." ("..FCAllDeaths[v.userid].count..")"
+    function OnUpdateDeaths(player, death)
+      if death then print("Death of "..player.name) end
+      require("consolecommands")
+      if death then
+        FCAllDeaths[player.userid] = {name=player.name, count=FCAllDeaths[player.userid] and FCAllDeaths[player.userid].count+1 or 1}
+      end
+      local ds = ""
+      for _,v in pairs(GLOBAL.AllPlayers or {player}) do
+        if FCAllDeaths[v.userid] then
+          ds = ds..(ds ~= "" and ", " or "")..v.name.." ("..FCAllDeaths[v.userid].count..")"
+        end
+      end
+      print("Deaths: "..ds)
+      if ds ~= "" then GLOBAL.TheNet:Announce("Deaths: "..ds) end
     end
-  end
-  print("Deaths: "..ds)
-  GLOBAL.TheNet:Announce("Deaths: "..ds)
+
+AddModRPCHandler("filecommands", "UpdateDeaths",
+    function(from, player, death)
+        OnUpdateDeaths(player, death)
+    end)  
+local function OnPlayerUpdate(player, death)
+  --SendModRPCToServer(MOD_RPC.filecommands.UpdateDeaths, player, death)
+  OnUpdateDeaths(player, death)
 end
 
 AddPrefabPostInit("world", function(inst)
@@ -56,12 +66,15 @@ AddClassPostConstruct("widgets/controls", function(self)
     local Image = require("widgets/image")
     --button
     self.fcbutton = self.bottomright_root:AddChild(FileCommandsButton())
+    self.sdbutton = self.bottomright_root:AddChild(ShowDeathsButton())
     FileCommands:SetButton(self.fcbutton)
     self.mapcontrols.minimapBtn.OnHide = function()
         self.fcbutton:TweenToPosition(-140, 75, 0)
+        self.sdbutton:TweenToPosition(-140, 25, 0)
     end
     self.mapcontrols.minimapBtn.OnShow = function()
         self.fcbutton:SnapToPosition(-140, 135, 0)
+        self.sdbutton:SnapToPosition(-140, 80, 0)
     end
     if self.mapcontrols.minimapBtn.shown then
         self.mapcontrols.minimapBtn.OnShow()

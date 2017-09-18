@@ -98,6 +98,8 @@ function playerEvent(event, param)
           counter = counter + 0.25 + math.random()/4
         end
       end
+    elseif event == "sleep" then
+      v:PushEvent("yawn", { grogginess = 4, knockoutduration = TUNING.BEARGER_YAWN_SLEEPTIME })
     else
       v:PushEvent(event)
     end
