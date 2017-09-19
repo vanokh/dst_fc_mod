@@ -155,6 +155,10 @@ function givePlayer(f, c)
       local sfab = SpawnPrefab(f)
       if sfab ~= nil then
         v.components.inventory:GiveItem(sfab)
+        if sfab.components.stackable ~= nil then
+          sfab.components.stackable:SetStackSize(c or 1)
+          break
+        end
       end
     end
   end
@@ -229,7 +233,17 @@ local function spawnFabNearPosition(fab, ppos, dist, angle)
     if fab == "klaus" then
       sfab:SpawnDeer()
     end
-    SpawnPrefab("spawn_fx_medium").Transform:SetPosition(pos.x, pos.y, pos.z)
+    if fab == "snowball" then
+      SpawnPrefab("splash_snow_fx").Transform:SetPosition(pos.x, pos.y, pos.z)
+      sfab.components.wateryprotection:SpreadProtection(sfab)
+      sfab:Remove()
+    elseif fab == "waterballoon" then
+      SpawnPrefab("waterballoon_splash").Transform:SetPosition(pos.x, pos.y, pos.z)
+      sfab.components.wateryprotection:SpreadProtection(sfab)
+      sfab:Remove()
+    else    
+      SpawnPrefab("spawn_fx_medium").Transform:SetPosition(pos.x, pos.y, pos.z)
+    end
   end
 	return sfab;
 end
@@ -274,7 +288,7 @@ local function fillFabs(f, c)
   return fabs;
 end
 
-function spawnNearPlayer(f, c)
+function spawnNearPlayer(f, c, makeFollower, equipFab)
   c = c or 1
   local fabs = fillFabs(f, c)
   if f == "randomBossHard" then
@@ -300,7 +314,18 @@ function spawnNearPlayer(f, c)
       for _,fv in pairs(fabs) do
         if v and v:IsValid() then
           v:DoTaskInTime(counter, function()
-              spawnFabNearPosition(fv, Vector3(v.Transform:GetWorldPosition()), COMMAND_NEAR_DISTANCE, math.random()*2*PI)
+              local res = spawnFabNearPosition(fv, Vector3(v.Transform:GetWorldPosition()), COMMAND_NEAR_DISTANCE, math.random()*2*PI)
+              if makeFollower and res.components.follower ~= nil then
+                --res.components.follower:SetLeader(v)
+                v:PushEvent("makefriend")
+                v.components.leader:AddFollower(res)
+                res.components.follower:AddLoyaltyTime(TUNING.TOTAL_DAY_TIME)
+                res.components.follower.maxfollowtime = TUNING.TOTAL_DAY_TIME * 3
+              end
+              if equipFab and res.components and res.components.inventory then
+                local efab = SpawnPrefab(equipFab)
+                res.components.inventory:Equip(efab)
+              end
             end)
           counter = counter + 0.25 + math.random()/4
         end
@@ -333,6 +358,72 @@ function startApo()
       end
     end)
   end
+end
+
+local function spawnAt(prefab, x, y, z)
+	local f = SpawnPrefab(prefab)
+  f.Transform:SetPosition(x, y, z)
+  return f
+end
+
+local function canSpawnTurf(pt)
+    local ground = TheWorld
+    if ground then
+		local tile = ground.Map:GetTileAtPoint(pt.x, pt.y, pt.z)
+		return tile ~= GROUND.IMPASSIBLE and tile < GROUND.UNDERGROUND --and not ground.Map:IsWater(tile)
+	end
+	return false
+end
+local function spawnTurf(turf, pt)	
+	local ground = TheWorld
+	if ground and canSpawnTurf(pt) then
+		local original_tile_type = ground.Map:GetTileAtPoint(pt.x, pt.y, pt.z)
+		local x, y = ground.Map:GetTileCoordsAtPoint(pt.x, pt.y, pt.z)
+		if x and y then
+			ground.Map:SetTile(x,y, turf)
+			ground.Map:RebuildLayer( original_tile_type, x, y )
+			ground.Map:RebuildLayer( turf, x, y )
+		end
+		local minimap = TheSim:FindFirstEntityWithTag("minimap")
+		if minimap then
+			minimap.MiniMap:RebuildLayer( original_tile_type, x, y )
+			minimap.MiniMap:RebuildLayer( turf, x, y )
+		end
+	end
+end
+
+function spawnArena(w,h)
+  local player = AllPlayers[1]
+	if player ~= nil and player.Network:IsServerAdmin() then
+		local x, y, z = player.Transform:GetWorldPosition()
+    spawnAt("diviningrodbase",x+2,y,z+2):AddTag("arena")
+		x = math.floor(x/4)*4
+		y = 0
+		z = math.floor(z/4)*4
+    w = w or 4
+    h = h or 3
+    local t = 4 --size of turf
+    local b = 2 --size of basalt
+    local tb = 2 --how many basalt in turf
+		for j=-w,w,1 do 
+			for i=-h,h,1 do spawnTurf(GROUND.CHECKER, Vector3(x+j*t, y, z+i*t)) end
+		end
+    for i=-w-1,w+1,w+1 do
+      spawnTurf(GROUND.CHECKER, Vector3(x+i*t, y, z+(h+1)*t))
+      spawnTurf(GROUND.CHECKER, Vector3(x+i*t, y, z-(h+1)*t))
+      spawnAt("firepit",x+i*t+2,y,z+(h+1)*t+2).components.fueled:InitializeFuelLevel(TUNING.FIREPIT_FUEL_MAX)
+      spawnAt("firepit",x+i*t+2,y,z-(h+1)*t+2).components.fueled:InitializeFuelLevel(TUNING.FIREPIT_FUEL_MAX)
+      spawnAt("glommerfuel",x+i*t,y,z+(h+1)*t+4) 
+      spawnAt("glommerfuel",x+i*t+4,y,z+(h+1)*t+4) 
+      spawnAt("glommerfuel",x+i*t,y,z-(h+1)*t) 
+      spawnAt("glommerfuel",x+i*t+4,y,z-(h+1)*t) 
+    end
+    
+		for i=-h*tb+1,(h+1)*tb-1,1 do spawnAt("basalt", x-w*tb*b, y, z+i*b) end
+		for i=-h*tb+1,(h+1)*tb-1,1 do spawnAt("basalt", x+(w+1)*tb*b, y, z+i*b) end
+		for i=-w*tb+2,(w+1)*tb-2,1 do if i ~= 0 then spawnAt("basalt", x+i*b, y, z-h*tb*b) end end
+		for i=-w*tb+2,(w+1)*tb-2,1 do if i ~= 0 then spawnAt("basalt", x+i*b, y, z+(h+1)*tb*b) end end
+	end
 end
 
 function Commands:DoSafe(cmdstr)
