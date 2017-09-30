@@ -9,12 +9,17 @@ end
 
 local require = GLOBAL.require
 local AddModRPCHandler = GLOBAL.AddModRPCHandler
+
 local FileCommandsButton = require("widgets/filecommandsbutton")
 local ShowDeathsButton = require("widgets/showdeathsbutton")
+local SpawnArenaButton = require("widgets/spawnarenabutton")
+
 local FileCommands = require("filecommands/filecommands")("FileCommands", GetModConfigData("file_path", true))
 local Commands = require("filecommands/commands")("Commands")
+
 GLOBAL.FileCommands = FileCommands
 FileCommands:SetCommands(Commands)
+
 GLOBAL.COMMAND_SPEED_TIMER = GetModConfigData("speed_timer", true) or 60
 GLOBAL.COMMAND_DAMAGE_TIMER = GetModConfigData("damage_timer", true) or 60
 GLOBAL.COMMAND_CHARGE_TIMER = GetModConfigData("charge_timer", true) or 60
@@ -67,18 +72,27 @@ AddClassPostConstruct("widgets/controls", function(self)
     --button
     self.fcbutton = self.bottomright_root:AddChild(FileCommandsButton())
     self.sdbutton = self.bottomright_root:AddChild(ShowDeathsButton())
+    self.sabutton = self.bottomright_root:AddChild(SpawnArenaButton())
+    
     FileCommands:SetButton(self.fcbutton)
     self.mapcontrols.minimapBtn.OnHide = function()
         self.fcbutton:TweenToPosition(-140, 75, 0)
         self.sdbutton:TweenToPosition(-140, 25, 0)
+        self.sabutton:TweenToPosition(-200, 25, 0)
     end
     self.mapcontrols.minimapBtn.OnShow = function()
         self.fcbutton:SnapToPosition(-140, 135, 0)
         self.sdbutton:SnapToPosition(-140, 80, 0)
+        self.sabutton:SnapToPosition(-200, 80, 0)
     end
     if self.mapcontrols.minimapBtn.shown then
         self.mapcontrols.minimapBtn.OnShow()
     else
         self.mapcontrols.minimapBtn.OnHide()
     end
+end)
+
+AddTaskSetPreInitAny(function(taskset)
+    print("Adding ArenaTask to "..taskset.name.." of "..#taskset.tasks)
+    table.insert(taskset.tasks, "ArenaTask")
 end)

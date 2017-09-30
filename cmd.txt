@@ -56,3 +56,9 @@ spawnNearPlayer randomTier2
 startApo
 
 playerEvent sleep
+
+spawnNearPlayer waterballoon 6
+spawnNearPlayer snowball 6
+spawnNearPlayer bunnyman 6 true goggleshat
+spawnNearPlayer pigman 6 true deserthat
+startArena klaus

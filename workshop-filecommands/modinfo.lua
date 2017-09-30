@@ -1,6 +1,6 @@
 name = "File commands"
 
-version = "1.2.3"
+version = "1.2.4"
 russian = name.utf8len and (russian or language == "ru")
 description = (
 	russian

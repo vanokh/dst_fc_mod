@@ -10,6 +10,23 @@ local Commands = Class(function(self, name)
     self:EnableLog(true)
 end)
 
+local function getunknownposition(radius)
+    local ground = TheWorld
+    local centers = {}
+    local maxx, maxy = 0, 0
+    for i, node in ipairs(ground.topology.nodes) do
+      if node.x > maxx then maxx = node.x end
+      if node.y > maxy then maxy = node.y end
+    end
+    local corners = {{x=-maxx,y=-maxy},{x=-maxx,y=maxy},{x=maxx,y=-maxy},{x=maxx,y=maxy}}
+    for _,c in pairs(corners) do
+      if not ground.Map:IsPassableAtPoint(c.x, 0, c.y) and #TheSim:FindEntities(c.x, 0, c.y, radius or 20) <= 0 then
+        return Point(c.x, 0, c.y)
+      end
+    end
+    print("Place for arena not found")
+end
+
 --from purple staff in prefabs/staff.lua
 local function getrandomposition(caster)
     local ground = TheWorld
@@ -43,11 +60,15 @@ local function teleportPlayer(player, loc)
 end
 
 function teleportRandom()
-  for _,v in pairs(AllPlayers) do
-    SpawnPrefab("spawn_fx_medium").Transform:SetPosition(v.Transform:GetWorldPosition())
-    v:ScreenFade(false, 2)
-    v:Hide()
-    v:DoTaskInTime(1, teleportPlayer)
+  if isArenaActive() then
+    teleportToArena()
+  else
+    for _,v in pairs(AllPlayers) do
+      SpawnPrefab("spawn_fx_medium").Transform:SetPosition(v.Transform:GetWorldPosition())
+      v:ScreenFade(false, 2)
+      v:Hide()
+      v:DoTaskInTime(1, teleportPlayer)
+    end
   end
 end
 
@@ -154,11 +175,12 @@ function givePlayer(f, c)
     for i = 1, c or 1 do
       local sfab = SpawnPrefab(f)
       if sfab ~= nil then
-        v.components.inventory:GiveItem(sfab)
         if sfab.components.stackable ~= nil then
           sfab.components.stackable:SetStackSize(c or 1)
+          v.components.inventory:GiveItem(sfab)
           break
         end
+        v.components.inventory:GiveItem(sfab)
       end
     end
   end
@@ -392,11 +414,107 @@ local function spawnTurf(turf, pt)
 	end
 end
 
-function spawnArena(w,h)
+function isArenaActive()
+  --check if arena exists
+  local ent = TheSim:FindFirstEntityWithTag("rodbase")
+  if not ent then
+    return false
+  end
+  local pos = Point(ent.Transform:GetWorldPosition())
+  --check if boss still alive
+  local ents = TheSim:FindEntities(pos.x, 0, pos.z, 30, {"arenaBoss"})
+  if #ents >= 1 then
+    return true
+  else
+    return false
+  end
+end
+
+function teleportToArena()
+  local ent = TheSim:FindFirstEntityWithTag("rodbase")
+  if not ent then
+    return
+  end
+  local pos = Point(ent.Transform:GetWorldPosition())
+  for _,v in pairs(AllPlayers) do
+    SpawnPrefab("spawn_fx_medium").Transform:SetPosition(v.Transform:GetWorldPosition())
+    v:ScreenFade(false, 2)
+    v:Hide()
+    local finaloffset = FindValidPositionByFan(math.random() * 2 * PI, 8, 8, function(offset) return true end)
+    if finaloffset ~= nil then
+        finaloffset.x = finaloffset.x + pos.x
+        finaloffset.z = finaloffset.z + pos.z
+    end
+    v:DoTaskInTime(1, function() teleportPlayer(v, finaloffset or pos) end)
+  end
+end
+
+function startArena(bossfab)
+  --find arena
+  local ents = TheSim:FindEntities(0, 0, 0, 1000, {"arena"})
+  local ent = TheSim:FindFirstEntityWithTag("rodbase")
+  local pos = getunknownposition(30) or Point(AllPlayers[1].Transform:GetWorldPosition())
+  --if #ents <= 0 then
+  if not ent then
+    if pos then
+      print("Arena not found, spawn at ", pos.x, pos.z)
+      spawnArena(4, 3, pos.x, pos.y, pos.z)
+    end
+  else
+    --pos = Point(ents[1].Transform:GetWorldPosition())
+    pos = Point(ent.Transform:GetWorldPosition())
+    print("Arena found at ", pos.x, pos.z)
+    ents = TheSim:FindEntities(pos.x, 0, pos.z, 30, {"monster"})
+    print("Remove "..#ents.." monsters")
+    for _,e in ipairs(ents) do
+      e:Remove()
+    end
+    ents = TheSim:FindEntities(pos.x, 0, pos.z, 30, {"arenaBoss"})
+    for _,e in ipairs(ents) do
+      e:Remove()
+    end
+    spawnArena(4, 3, pos.x, pos.y, pos.z, true)
+  end
+  
+  --teleport players
+  print("Teleport all players")
+  teleportToArena()
+  
+  --spawn boss
+  print("Spawn boss ", bossfab)
+  local fabs = fillFabs(bossfab)
+  for c=10,0,-1 do    
+    TheWorld:DoTaskInTime(11-c, function() c_announce("Boss arriving in "..c) end)
+  end
+  if #fabs == 1 then
+    TheWorld:DoTaskInTime(11.5, function() 
+        local res = spawnFabNearPosition(fabs[1], pos)
+        res:AddTag("arenaBoss")
+        res:ListenForEvent("death", function() 
+              for _,v in pairs(AllPlayers) do
+                givePrize(v, 10)
+              end
+            end)
+      end)
+  else
+    local counter = 11.5
+    for _,fv in pairs(fabs) do
+      v:DoTaskInTime(counter, function()
+          local res = spawnFabNearPosition(fv, pos, 4, math.random()*2*PI)
+          res:AddTag("arenaBoss")
+        end)
+      counter = counter + 0.25 + math.random()/4
+    end
+  end
+end
+
+function spawnArena(w,h,x,y,z,refreshOnly)
+  refreshOnly = refreshOnly or false
   local player = AllPlayers[1]
-	if player ~= nil and player.Network:IsServerAdmin() then
-		local x, y, z = player.Transform:GetWorldPosition()
-    spawnAt("diviningrodbase",x+2,y,z+2):AddTag("arena")
+	if not x and player ~= nil and player.Network:IsServerAdmin() then
+		x, y, z = player.Transform:GetWorldPosition()
+  end
+  if x then
 		x = math.floor(x/4)*4
 		y = 0
 		z = math.floor(z/4)*4
@@ -405,25 +523,95 @@ function spawnArena(w,h)
     local t = 4 --size of turf
     local b = 2 --size of basalt
     local tb = 2 --how many basalt in turf
-		for j=-w,w,1 do 
-			for i=-h,h,1 do spawnTurf(GROUND.CHECKER, Vector3(x+j*t, y, z+i*t)) end
-		end
+    if not refreshOnly then
+      spawnAt("diviningrodbase",x+2,y,z+2):AddTag("arena")
+      for j=-w-1,w+1,1 do 
+        for i=-h-1,h+1,1 do spawnTurf(GROUND.CHECKER, Vector3(x+j*t, y, z+i*t)) end
+      end
+      for j=-w-1,w+1,1 do spawnTurf(GROUND.IMPASSABLE, Vector3(x+j*t, y, z+(h+2)*t)) end
+      for j=-w-1,w+1,1 do spawnTurf(GROUND.IMPASSABLE, Vector3(x+j*t, y, z+(-h-2)*t)) end
+      for i=-h-2,h+2,1 do spawnTurf(GROUND.IMPASSABLE, Vector3(x+(-w-2)*t, y, z+i*t)) end
+      for i=-h-2,h+2,1 do spawnTurf(GROUND.IMPASSABLE, Vector3(x+(w+2)*t, y, z+i*t)) end
+    else
+      local ents = TheSim:FindEntities(x, y, z, 30)
+      for _,e in pairs(ents) do
+        if e.prefab == "firepit" or e.prefab == "glommerfuel" or e.prefab == "lightning_rod" then
+          e:Remove()
+        end
+      end
+    end
     for i=-w-1,w+1,w+1 do
-      spawnTurf(GROUND.CHECKER, Vector3(x+i*t, y, z+(h+1)*t))
-      spawnTurf(GROUND.CHECKER, Vector3(x+i*t, y, z-(h+1)*t))
+      --spawnTurf(GROUND.CHECKER, Vector3(x+i*t, y, z+(h+1)*t))
+      --spawnTurf(GROUND.CHECKER, Vector3(x+i*t, y, z-(h+1)*t))
       spawnAt("firepit",x+i*t+2,y,z+(h+1)*t+2).components.fueled:InitializeFuelLevel(TUNING.FIREPIT_FUEL_MAX)
       spawnAt("firepit",x+i*t+2,y,z-(h+1)*t+2).components.fueled:InitializeFuelLevel(TUNING.FIREPIT_FUEL_MAX)
-      spawnAt("glommerfuel",x+i*t,y,z+(h+1)*t+4) 
+      
+      spawnAt("lightning_rod",x+i*t+2,y,z+(h+2)*t+2)
+      spawnAt("lightning_rod",x+i*t+2,y,z-(h+2)*t+2)
+      
+      spawnAt("glommerfuel",x+i*t,  y,z+(h+1)*t+4)
       spawnAt("glommerfuel",x+i*t+4,y,z+(h+1)*t+4) 
-      spawnAt("glommerfuel",x+i*t,y,z-(h+1)*t) 
+      for j=1,3,1 do
+        spawnAt("spear_wathgrithr",x+i*t+j,y,z+(h+1)*t+4) 
+      end
+      spawnAt("amulet",     x+i*t,  y,z+(h+1)*t) 
+      spawnAt("amulet",     x+i*t+4,y,z+(h+1)*t) 
+      spawnAt("armorruins", x+i*t,  y,z+(h+1)*t+1) 
+      spawnAt("slurtlehat", x+i*t,  y,z+(h+1)*t+2) 
+      spawnAt("armorruins", x+i*t+4,y,z+(h+1)*t+1) 
+      spawnAt("slurtlehat", x+i*t+4,y,z+(h+1)*t+2) 
+      spawnAt("fishsticks", x+i*t,  y,z+(h+1)*t+3).components.stackable:SetStackSize(10) 
+      spawnAt("fishsticks", x+i*t+4,y,z+(h+1)*t+3).components.stackable:SetStackSize(10)  
+      
+      spawnAt("glommerfuel",x+i*t,  y,z-(h+1)*t) 
       spawnAt("glommerfuel",x+i*t+4,y,z-(h+1)*t) 
+      for j=1,3,1 do
+        spawnAt("spear_wathgrithr",x+i*t+j,y,z-(h+1)*t) 
+      end
+      spawnAt("amulet",     x+i*t,  y,z-(h+1)*t+4) 
+      spawnAt("amulet",     x+i*t+4,y,z-(h+1)*t+4) 
+      spawnAt("armorruins", x+i*t,  y,z-(h+1)*t+2) 
+      spawnAt("slurtlehat", x+i*t,  y,z-(h+1)*t+3) 
+      spawnAt("armorruins", x+i*t+4,y,z-(h+1)*t+2) 
+      spawnAt("slurtlehat", x+i*t+4,y,z-(h+1)*t+3) 
+      spawnAt("fishsticks", x+i*t,  y,z-(h+1)*t+1).components.stackable:SetStackSize(10) 
+      spawnAt("fishsticks", x+i*t+4,y,z-(h+1)*t+1).components.stackable:SetStackSize(10)  
     end
     
-		for i=-h*tb+1,(h+1)*tb-1,1 do spawnAt("basalt", x-w*tb*b, y, z+i*b) end
-		for i=-h*tb+1,(h+1)*tb-1,1 do spawnAt("basalt", x+(w+1)*tb*b, y, z+i*b) end
-		for i=-w*tb+2,(w+1)*tb-2,1 do if i ~= 0 then spawnAt("basalt", x+i*b, y, z-h*tb*b) end end
-		for i=-w*tb+2,(w+1)*tb-2,1 do if i ~= 0 then spawnAt("basalt", x+i*b, y, z+(h+1)*tb*b) end end
+		for i=-h*tb,(h+1)*tb,1 do spawnAt("basalt_pillar", x-w*tb*b, y, z+i*b) end
+		for i=-h*tb,(h+1)*tb,1 do spawnAt("basalt_pillar", x+(w+1)*tb*b, y, z+i*b) end
+		for i=-w*tb+2,(w+1)*tb-2,1 do if i ~= 1 then spawnAt("basalt_pillar", x+i*b, y, z-h*tb*b) end end
+		for i=-w*tb+2,(w+1)*tb-2,1 do if i ~= 1 then spawnAt("basalt_pillar", x+i*b, y, z+(h+1)*tb*b) end end
 	end
+end
+
+local function launchitem(item, angle)
+    local speed = math.random() * 4 + 2
+    angle = (angle + math.random() * 60 - 30) * DEGREES
+    item.Physics:SetVel(speed * math.cos(angle), math.random() * 2 + 8, speed * math.sin(angle))
+end
+
+function givePrize(giver,count)
+    local prizes = {"goldnugget","gears","goldnugget","gears","purplegem","yellowgem","redgem","bluegem","greengem","orangegem"}
+    local inst = TheSim:FindFirstEntityWithTag("rodbase")
+    inst.SoundEmitter:PlaySound("dontstarve/pig/PigKingThrowGold")
+
+    local x, y, z = inst.Transform:GetWorldPosition()
+    y = 4.5
+
+    local angle
+    if giver ~= nil and giver:IsValid() then
+      angle = 180 - giver:GetAngleToPoint(x, 0, z)
+    else
+      local down = TheCamera:GetDownVec()
+      angle = math.atan2(down.z, down.x) / DEGREES
+    end
+
+    for k = 1, count or 10 do
+      local nug = SpawnPrefab(prizes[math.random(#prizes)])
+      nug.Transform:SetPosition(x, y, z)
+      launchitem(nug, angle)
+    end
 end
 
 function Commands:DoSafe(cmdstr)
